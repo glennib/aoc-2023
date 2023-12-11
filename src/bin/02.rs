@@ -60,7 +60,7 @@ mod w {
         PResult, Parser,
     };
 
-    pub fn count<'c>(color: &'c str) -> impl FnMut(&mut &str) -> PResult<u32> + 'c {
+    pub fn count(color: &str) -> impl FnMut(&mut &str) -> PResult<u32> + '_ {
         move |input| {
             (dec_uint, " ", color)
                 .map(|(count, _, _)| count)
