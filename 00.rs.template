@@ -1,0 +1,44 @@
+use aoc_2023::{day_number, MY_COOKIE};
+use aoc_cache::get;
+
+fn part_one_work(input: &str) -> u32 {
+    todo!()
+}
+
+fn part_one(input: &str) {
+    println!("part one: {}", part_one_work(input));
+}
+
+fn part_two_work(input: &str) -> u32 {
+    todo!()
+}
+fn part_two(input: &str) {
+    println!("part two: {}", part_two_work(input));
+}
+
+fn main() {
+    let input = get(
+        &format!(
+            "https://adventofcode.com/2023/day/{}/input",
+            day_number(file!())
+        ),
+        MY_COOKIE,
+    )
+    .unwrap();
+    part_one(&input);
+    part_two(&input);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    const TEST_INPUT: &str = "";
+    #[test]
+    fn part_one_works() {
+        assert_eq!(part_one_work(TEST_INPUT), 0);
+    }
+    #[test]
+    fn part_two_works() {
+        assert_eq!(part_two_work(TEST_INPUT), 0);
+    }
+}

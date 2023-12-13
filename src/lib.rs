@@ -1,3 +1,4 @@
+use std::path::Path;
 use winnow::{
     error::{ErrorKind, ParserError},
     token::any,
@@ -18,9 +19,19 @@ pub fn match_and_move_1<'s, O, E: ParserError<&'s str>>(
     }
 }
 
+#[must_use]
+#[allow(clippy::missing_panics_doc)]
+pub fn day_number(file: &str) -> &str {
+    let prefixed_number = Path::new(file)
+        .file_stem()
+        .and_then(|f| f.to_str())
+        .unwrap();
+    prefixed_number.strip_prefix('0').unwrap_or(prefixed_number)
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::match_and_move_1;
+    use crate::{day_number, match_and_move_1};
     use winnow::{error::InputError, Parser};
 
     #[test]
@@ -29,5 +40,11 @@ mod tests {
         let res = match_and_move_1::<_, InputError<_>>("otto").parse_next(input);
         assert_eq!(res, Ok("otto"));
         assert_eq!(*input, "ttootto");
+    }
+
+    #[test]
+    pub fn get_right_advent_day_number() {
+        assert_eq!("7", day_number("/directory/files/07.rs"));
+        assert_eq!("24", day_number("/directory/files/24.rs"));
     }
 }
