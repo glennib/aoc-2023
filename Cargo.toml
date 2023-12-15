@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 aoc-cache = "0.2.2"
 lazy_static = "1.4.0"
+num = "0.4.1"
 rayon = "1.8.0"
 winnow = "0.5.26"
 

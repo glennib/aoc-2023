@@ -1,13 +1,14 @@
 use aoc_2023::{day_number, MY_COOKIE};
 use aoc_cache::get;
-use std::collections::HashMap;
-use std::iter::repeat;
-use std::str::FromStr;
-use winnow::combinator::{delimited, rest, separated_pair};
-use winnow::error::ContextError;
-use winnow::stream::AsChar;
-use winnow::token::take_while;
-use winnow::{PResult, Parser};
+use num::Integer;
+use std::{collections::HashMap, iter::repeat, str::FromStr};
+use winnow::{
+    combinator::{delimited, rest, separated_pair},
+    error::ContextError,
+    stream::AsChar,
+    token::take_while,
+    PResult, Parser,
+};
 
 struct Directions(Vec<Direction>);
 
@@ -25,6 +26,14 @@ impl FromStr for Directions {
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
 struct Name<'a>(&'a str);
+impl<'a> Name<'a> {
+    fn is_start(&self) -> bool {
+        self.0.ends_with('A')
+    }
+    fn is_goal(&self) -> bool {
+        self.0.ends_with('Z')
+    }
+}
 
 #[derive(Debug)]
 struct Node<'a> {
@@ -68,7 +77,7 @@ impl<'a> TryFrom<&'a str> for Node<'a> {
 
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         fn name<'a>(input: &mut &'a str) -> PResult<&'a str> {
-            take_while(1.., AsChar::is_alpha).parse_next(input)
+            take_while(1.., AsChar::is_alphanum).parse_next(input)
         }
         let (name, left, right) = (
             name,
@@ -130,8 +139,51 @@ fn part_one(input: &str) {
     println!("part one: {}", part_one_work(input));
 }
 
-fn part_two_work(input: &str) -> u32 {
-    todo!()
+fn part_two_work(input: &str) -> u64 {
+    let (directions, (), nodes) = (
+        take_while(1.., AsChar::is_alpha),
+        "\n\n".void(),
+        rest::<_, ContextError>,
+    )
+        .parse(input)
+        .unwrap();
+    let directions: Directions = directions.parse().unwrap();
+    let nodes: Vec<_> = nodes
+        .lines()
+        .map(Node::try_from)
+        .collect::<Result<_, _>>()
+        .unwrap();
+    let mut map = HashMap::with_capacity(nodes.len());
+    for Node { name, left, right } in nodes {
+        map.insert(name, Children { left, right });
+    }
+    let map = map;
+
+    let currents = map.keys().copied().filter(Name::is_start);
+
+    let directions = repeat(directions.0.into_iter()).flatten();
+
+    let mut lcm = 1;
+
+    for mut current in currents {
+        let mut directions = directions.clone();
+        let mut step = 0;
+        while !current.is_goal() {
+            step += 1;
+            let direction = directions.next().unwrap();
+            match direction {
+                Direction::Left => {
+                    current = map.get(&current).unwrap().left;
+                }
+                Direction::Right => {
+                    current = map.get(&current).unwrap().right;
+                }
+            }
+        }
+        lcm = lcm.lcm(&step);
+    }
+
+    lcm
 }
 
 fn part_two(input: &str) {
@@ -169,6 +221,16 @@ ZZZ = (ZZZ, ZZZ)";
 AAA = (BBB, BBB)
 BBB = (AAA, ZZZ)
 ZZZ = (ZZZ, ZZZ)";
+    const TEST_INPUT_3: &str = "LR
+
+11A = (11B, XXX)
+11B = (XXX, 11Z)
+11Z = (11B, XXX)
+22A = (22B, XXX)
+22B = (22C, 22C)
+22C = (22Z, 22Z)
+22Z = (22B, 22B)
+XXX = (XXX, XXX)";
 
     #[test]
     fn part_one_works() {
@@ -178,6 +240,6 @@ ZZZ = (ZZZ, ZZZ)";
 
     #[test]
     fn part_two_works() {
-        assert_eq!(part_two_work(TEST_INPUT_1), 0);
+        assert_eq!(part_two_work(TEST_INPUT_3), 6);
     }
 }
