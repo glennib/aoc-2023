@@ -1,3 +1,4 @@
+use aoc_cache::get;
 use std::path::Path;
 use winnow::{
     error::{ErrorKind, ParserError},
@@ -27,6 +28,16 @@ pub fn day_number(file: &str) -> &str {
         .and_then(|f| f.to_str())
         .unwrap();
     prefixed_number.strip_prefix('0').unwrap_or(prefixed_number)
+}
+
+#[must_use]
+#[allow(clippy::missing_panics_doc)]
+pub fn get_input(day_number: &str) -> String {
+    get(
+        &format!("https://adventofcode.com/2023/day/{day_number}/input"),
+        MY_COOKIE,
+    )
+    .unwrap()
 }
 
 #[cfg(test)]

@@ -1,5 +1,4 @@
-use aoc_2023::{day_number, MY_COOKIE};
-use aoc_cache::get;
+use aoc_2023::{day_number, get_input};
 use itertools::Itertools;
 use std::{
     collections::HashMap,
@@ -29,6 +28,28 @@ enum Card {
     Queen,
     King,
     Ace,
+}
+
+impl From<Card2> for Card {
+    fn from(value: Card2) -> Self {
+        match value {
+            Card2::Joker => {
+                panic!("cannot convert joker");
+            }
+            Card2::Two => Card::Two,
+            Card2::Three => Card::Three,
+            Card2::Four => Card::Four,
+            Card2::Five => Card::Five,
+            Card2::Six => Card::Six,
+            Card2::Seven => Card::Seven,
+            Card2::Eight => Card::Eight,
+            Card2::Nine => Card::Nine,
+            Card2::Ten => Card::Ten,
+            Card2::Queen => Card::Queen,
+            Card2::King => Card::King,
+            Card2::Ace => Card::Ace,
+        }
+    }
 }
 
 #[derive(Copy, Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
@@ -97,42 +118,114 @@ fn classify(cards: FiveCards<Card>) -> Class {
 }
 
 fn classify_2(cards: FiveCards<Card2>) -> Class {
+    const ALL_CARDS: &[Card] = &[
+        Card::Two,
+        Card::Three,
+        Card::Four,
+        Card::Five,
+        Card::Six,
+        Card::Seven,
+        Card::Eight,
+        Card::Nine,
+        Card::Ten,
+        Card::Jack,
+        Card::Queen,
+        Card::King,
+        Card::Ace,
+    ];
+
     let number_of_jokers =
         u8::try_from(cards.iter().filter(|&&c| c == Card2::Joker).count()).unwrap();
+
     let cards_without_jokers = cards.into_iter().filter(|&c| c != Card2::Joker);
-    let mut count = HashMap::<_, u8>::new();
 
-    for card in cards_without_jokers {
-        *count.entry(card).or_default() += 1;
+    let cards: Vec<_> = cards_without_jokers.map(Card::from).collect();
+    if number_of_jokers == 0 {
+        return classify(FiveCards::try_from(cards).unwrap());
     }
 
-    if count.len() == 1 {
-        return Class::FiveOfAKind;
+    let mut five_cards = [Card::Ace, Card::Ace, Card::Ace, Card::Ace, Card::Ace];
+
+    for (idx, &card) in cards.iter().enumerate() {
+        five_cards[idx] = card;
     }
 
-    if count.values().any(|&c| c == 4 - number_of_jokers) {
-        return Class::FourOfAKind;
+    if number_of_jokers == 1 {
+        return ALL_CARDS
+            .iter()
+            .map(|&a| {
+                five_cards[4] = a;
+                classify(five_cards)
+            })
+            .max()
+            .unwrap();
     }
 
-    todo!();
-    if count.len() == 2 && count.values().any(|&c| c == 3 || c == 2) {
-        return Class::FullHouse;
+    if number_of_jokers == 2 {
+        return ALL_CARDS
+            .iter()
+            .cartesian_product(ALL_CARDS)
+            .map(|(&a, &b)| {
+                five_cards[3] = a;
+                five_cards[4] = b;
+                classify(five_cards)
+            })
+            .max()
+            .unwrap();
     }
 
-    if count.values().any(|&c| c == 3 - number_of_jokers) {
-        return Class::ThreeOfAKind;
+    if number_of_jokers == 3 {
+        return ALL_CARDS
+            .iter()
+            .cartesian_product(ALL_CARDS)
+            .cartesian_product(ALL_CARDS)
+            .map(|((&a, &b), &c)| {
+                five_cards[2] = a;
+                five_cards[3] = b;
+                five_cards[4] = c;
+                classify(five_cards)
+            })
+            .max()
+            .unwrap();
     }
 
-    todo!();
-    if count.values().filter(|&&c| c == 2).count() == 2 {
-        return Class::TwoPair;
+    if number_of_jokers == 4 {
+        return ALL_CARDS
+            .iter()
+            .cartesian_product(ALL_CARDS)
+            .cartesian_product(ALL_CARDS)
+            .cartesian_product(ALL_CARDS)
+            .map(|(((&a, &b), &c), &d)| {
+                five_cards[1] = a;
+                five_cards[2] = b;
+                five_cards[3] = c;
+                five_cards[4] = d;
+                classify(five_cards)
+            })
+            .max()
+            .unwrap();
     }
 
-    if count.values().any(|&v| v == 2 - number_of_jokers) {
-        return Class::OnePair;
+    if number_of_jokers == 5 {
+        return ALL_CARDS
+            .iter()
+            .cartesian_product(ALL_CARDS)
+            .cartesian_product(ALL_CARDS)
+            .cartesian_product(ALL_CARDS)
+            .cartesian_product(ALL_CARDS)
+            .map(|((((&a, &b), &c), &d), &e)| {
+                five_cards[0] = a;
+                five_cards[1] = b;
+                five_cards[2] = c;
+                five_cards[3] = d;
+                five_cards[4] = e;
+                classify(five_cards)
+            })
+            .max()
+            .unwrap();
     }
 
-    Class::HighCard
+    unreachable!()
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -284,24 +377,26 @@ fn part_one(input: &str) {
     println!("part one: {}", part_one_work(input));
 }
 
-fn part_two_work(_input: &str) -> u32 {
-    todo!()
+fn part_two_work(input: &str) -> u32 {
+    input
+        .lines()
+        .map(|line| line.parse::<HandAndBid<Card2>>().unwrap())
+        .sorted_by(|a, b| a.hand.cmp(&b.hand))
+        .enumerate()
+        .map(|(rank, hab)| {
+            let rank = u32::try_from(rank + 1).unwrap();
+            rank * hab.bid
+        })
+        .sum()
 }
 fn part_two(input: &str) {
     println!("part two: {}", part_two_work(input));
 }
 
 fn main() {
-    let input = get(
-        &format!(
-            "https://adventofcode.com/2023/day/{}/input",
-            day_number(file!())
-        ),
-        MY_COOKIE,
-    )
-    .unwrap();
+    let input = get_input(day_number(file!()));
     part_one(&input);
-    // part_two(&input);
+    part_two(&input);
 }
 
 #[cfg(test)]
@@ -318,7 +413,7 @@ QQQJA 483";
     }
     #[test]
     fn part_two_works() {
-        assert_eq!(part_two_work(TEST_INPUT), 0);
+        assert_eq!(part_two_work(TEST_INPUT), 5905);
     }
     #[test]
     fn classifies() {
