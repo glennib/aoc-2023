@@ -17,13 +17,7 @@ fn part_two(input: &str) {
 }
 
 fn main() {
-    let input = get(
-        &format!(
-            "https://adventofcode.com/2023/day/{}/input",
-            day_number(file!())
-        ),
-        MY_COOKIE,
-    )
+    let input = get_input(day_number(file!()));
     .unwrap();
     part_one(&input);
     part_two(&input);

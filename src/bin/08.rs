@@ -1,5 +1,4 @@
-use aoc_2023::{day_number, MY_COOKIE};
-use aoc_cache::get;
+use aoc_2023::{day_number, get_input};
 use num::Integer;
 use std::{collections::HashMap, iter::repeat, str::FromStr};
 use winnow::{
@@ -191,14 +190,7 @@ fn part_two(input: &str) {
 }
 
 fn main() {
-    let input = get(
-        &format!(
-            "https://adventofcode.com/2023/day/{}/input",
-            day_number(file!())
-        ),
-        MY_COOKIE,
-    )
-    .unwrap();
+    let input = get_input(day_number(file!()));
     part_one(&input);
     part_two(&input);
 }
