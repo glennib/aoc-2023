@@ -12,6 +12,7 @@ fn part_one(input: &str) {
 fn part_two_work(input: &str) -> u32 {
     todo!()
 }
+
 fn part_two(input: &str) {
     println!("part two: {}", part_two_work(input));
 }
