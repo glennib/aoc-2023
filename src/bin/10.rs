@@ -1,5 +1,5 @@
 use aoc_2023::{day_number, get_input};
-use std::iter::zip;
+use std::{collections::HashSet, iter::zip, str::FromStr};
 
 #[derive(Clone, Copy, Debug)]
 enum Pipe {
@@ -70,6 +70,18 @@ impl Pipe {
         };
         Some(dir)
     }
+
+    fn directions(self) -> (Direction, Direction) {
+        use Direction::{East, North, South, West};
+        match self {
+            Pipe::NorthSouth => (North, South),
+            Pipe::WestEast => (West, East),
+            Pipe::NorthEast => (North, East),
+            Pipe::NorthWest => (North, West),
+            Pipe::SouthWest => (South, West),
+            Pipe::SouthEast => (South, East),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -110,6 +122,70 @@ impl Map {
             row,
             col,
         }
+    }
+
+    /// Finds the start tile and the two valid directions to go towards
+    fn start(&self) -> (TileRef<'_>, Direction, Direction) {
+        const DIRECTIONS: [Direction; 4] = [
+            Direction::North,
+            Direction::West,
+            Direction::South,
+            Direction::East,
+        ];
+        let (start_row_idx, start_col_idx) = self
+            .tiles
+            .iter()
+            .enumerate()
+            .flat_map(|(row_idx, row)| {
+                row.iter()
+                    .enumerate()
+                    .map(move |(col_idx, tile)| (row_idx, col_idx, tile))
+            })
+            .find_map(|(row_idx, col_idx, tile)| match tile {
+                Tile::Start => Some((row_idx, col_idx)),
+                _ => None,
+            })
+            .unwrap();
+
+        let tile_ref = self.get(start_row_idx, start_col_idx);
+        let mut connecting_directions = DIRECTIONS
+            .into_iter()
+            .filter(|&dir| tile_ref.next_by_going_towards(dir).is_some());
+        let dir_1 = connecting_directions.next().unwrap();
+        let dir_2 = connecting_directions.next().unwrap();
+        assert_eq!(connecting_directions.next(), None);
+        (tile_ref, dir_1, dir_2)
+    }
+
+    fn sanitize(mut self) -> Self {
+        let (start, d, _) = self.start();
+        let route: HashSet<_> = start
+            .into_iter(d)
+            .map(|tile| (tile.row, tile.col))
+            .collect();
+
+        let n_rows = self.tiles.len();
+        let n_cols = self.tiles.first().unwrap().len();
+
+        for row in 0..n_rows {
+            for col in 0..n_cols {
+                if !route.contains(&(row, col)) {
+                    self.tiles[row][col] = Tile::Ground;
+                }
+            }
+        }
+        self
+    }
+}
+
+impl FromStr for Map {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let map = s
+            .lines()
+            .map(|line| line.chars().map(|c| Tile::try_from(c).unwrap()).collect())
+            .collect();
+        Ok(Self { tiles: map })
     }
 }
 
@@ -166,10 +242,6 @@ impl<'map> TileRef<'map> {
         if !p.valid_from(came_from) {
             return None;
         }
-        // assert!(
-        //     p.valid_from(came_from),
-        //     "{p:?} cannot be traversed from {came_from:?}"
-        // );
         p.connects_to(came_from)
     }
     fn next_by_came_from(self, came_from: Direction) -> Option<Self> {
@@ -180,12 +252,14 @@ impl<'map> TileRef<'map> {
         let (row, col) = add((self.row, self.col), going_towards.idx_offset());
         self.row = row;
         self.col = col;
-        match self.tile() {
-            Tile::Ground => {
-                panic!("this pipe does not lead that way");
+        if let Tile::Pipe(p) = self.tile() {
+            if p.valid_from(going_towards.opposite()) {
+                Some(self)
+            } else {
+                None
             }
-            Tile::Start => None,
-            Tile::Pipe(_) => Some(self),
+        } else {
+            None
         }
     }
     fn into_iter(self, came_from: Direction) -> MapIter<'map> {
@@ -236,80 +310,16 @@ impl TryFrom<char> for Tile {
 }
 
 fn part_one_work(input: &str) -> u32 {
-    let map: Vec<Vec<_>> = input
-        .lines()
-        .map(|line| line.chars().map(|c| Tile::try_from(c).unwrap()).collect())
-        .collect();
-    let map = Map { tiles: map };
+    let map: Map = input.parse().unwrap();
 
-    let rows = map.tiles.len();
-    let cols = map.tiles.first().unwrap().len();
+    let (start, dir_1_towards, dir_2_towards) = map.start();
 
-    // Find start
-    let (start_row_idx, start_col_idx) = map
-        .tiles
-        .iter()
-        .enumerate()
-        .flat_map(|(row_idx, row)| {
-            row.iter()
-                .enumerate()
-                .map(move |(col_idx, tile)| (row_idx, col_idx, tile))
-        })
-        .find_map(|(row_idx, col_idx, tile)| match tile {
-            Tile::Start => Some((row_idx, col_idx)),
-            _ => None,
-        })
-        .unwrap();
-
-    let directions = [
-        Direction::North,
-        Direction::South,
-        Direction::West,
-        Direction::East,
-    ];
-    let mut connects_to_start = directions
-        .into_iter()
-        .map(|direction| (direction, direction.idx_offset()))
-        .filter_map(|(direction, (row_offset, col_offset))| {
-            let (new_row, new_col) = (
-                row_offset + isize::try_from(start_row_idx).unwrap(),
-                col_offset + isize::try_from(start_col_idx).unwrap(),
-            );
-            if new_row < 0
-                || new_col < 0
-                || new_row >= isize::try_from(rows).unwrap()
-                || new_col >= isize::try_from(cols).unwrap()
-            {
-                return None;
-            }
-            Some((
-                direction.opposite(),
-                (
-                    usize::try_from(new_row).unwrap(),
-                    usize::try_from(new_col).unwrap(),
-                ),
-            ))
-        })
-        .filter(|(direction, (row, col))| {
-            let tile = map.tiles[*row][*col];
-            match tile {
-                Tile::Ground => false,
-                Tile::Start => {
-                    unreachable!()
-                }
-                Tile::Pipe(pipe) => pipe.valid_from(*direction),
-            }
-        });
-    let first_1 = connects_to_start.next().unwrap();
-    let first_2 = connects_to_start.next().unwrap();
-    assert_eq!(connects_to_start.next(), None);
-
-    let first_1 = (first_1.0, map.get(first_1.1 .0, first_1.1 .1));
-    let first_2 = (first_2.0, map.get(first_2.1 .0, first_2.1 .1));
+    let first_1 = start.next_by_going_towards(dir_1_towards).unwrap();
+    let first_2 = start.next_by_going_towards(dir_2_towards).unwrap();
 
     let distance = zip(
-        first_1.1.into_iter(first_1.0),
-        first_2.1.into_iter(first_2.0),
+        first_1.into_iter(dir_1_towards.opposite()),
+        first_2.into_iter(dir_2_towards.opposite()),
     )
     .enumerate()
     .find_map(|(n, (a, b))| (a == b).then_some(n + 1))
@@ -323,6 +333,11 @@ fn part_one(input: &str) {
 }
 
 fn part_two_work(input: &str) -> u32 {
+    let map: Map = input.parse().unwrap();
+    let map = map.sanitize();
+
+    let (start, dir_1, dir_2) = map.start();
+
     todo!()
 }
 
@@ -333,7 +348,7 @@ fn part_two(input: &str) {
 fn main() {
     let input = get_input(day_number(file!()));
     part_one(&input);
-    // part_two(&input);
+    part_two(&input);
 }
 
 #[cfg(test)]
