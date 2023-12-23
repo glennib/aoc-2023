@@ -11,6 +11,7 @@ itertools = "0.12.0"
 lazy_static = "1.4.0"
 ndarray = "0.15.6"
 num = "0.4.1"
+pathfinding = "4.6.0"
 rayon = "1.8.0"
 winnow = "0.5.26"
 
